@@ -27,10 +27,17 @@ func TestRegisterFullScopeByDefault(t *testing.T) {
 		"jira_list_transitions", "jira_transition_issue",
 		"jira_list_worklogs", "jira_add_worklog",
 		"jira_list_projects", "jira_get_project", "jira_list_issue_types",
+		"jira_list_components", "jira_create_component", "jira_list_versions", "jira_create_version",
 		"jira_get_myself", "jira_search_assignable_users",
-		"jira_list_boards", "jira_get_board", "jira_list_sprints", "jira_get_sprint",
+		"jira_list_boards", "jira_get_board", "jira_create_board", "jira_delete_board",
+		"jira_list_sprints", "jira_get_sprint",
 		"jira_list_backlog_issues", "jira_list_sprint_issues",
 		"jira_create_sprint", "jira_update_sprint", "jira_move_issues_to_sprint",
+		"jira_get_board_configuration", "jira_get_issue_estimation",
+		"jira_list_epics", "jira_get_epic", "jira_list_epic_issues",
+		"jira_move_issues_to_epic", "jira_remove_issues_from_epic",
+		"jira_list_priorities", "jira_list_statuses", "jira_list_issue_link_types", "jira_link_issues",
+		"jira_list_webhooks", "jira_delete_webhooks",
 	} {
 		if _, ok := handlers[want]; !ok {
 			t.Fatalf("missing handler %s", want)

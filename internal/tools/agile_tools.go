@@ -29,6 +29,22 @@ func registerAgileTools(add toolAdder) {
 		}),
 		[]string{"board_id"}, handleGetBoard)
 
+	add("jira_create_board",
+		"Create a new Jira Software board (scrum or kanban) — requires write:board-scope:jira-software.",
+		baseProps(map[string]interface{}{
+			"name":      map[string]interface{}{"type": "string"},
+			"type":      map[string]interface{}{"type": "string", "enum": []string{"scrum", "kanban"}},
+			"filter_id": map[string]interface{}{"type": "integer", "description": "ID of the saved filter used by this board"},
+		}),
+		[]string{"name", "type", "filter_id"}, handleCreateBoard)
+
+	add("jira_delete_board",
+		"Delete a board by id — requires write:board-scope:jira-software.",
+		baseProps(map[string]interface{}{
+			"board_id": map[string]interface{}{"type": "integer"},
+		}),
+		[]string{"board_id"}, handleDeleteBoard)
+
 	add("jira_list_sprints",
 		"List sprints on a board.",
 		baseProps(map[string]interface{}{
@@ -90,6 +106,21 @@ func registerAgileTools(add toolAdder) {
 			"issue_keys": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "maxItems": 50},
 		}),
 		[]string{"sprint_id", "issue_keys"}, handleMoveIssuesToSprint)
+
+	add("jira_get_board_configuration",
+		"Get configuration for a board (columns, estimation, filter, location) — requires read:board-scope.admin:jira-software.",
+		baseProps(map[string]interface{}{
+			"board_id": map[string]interface{}{"type": "integer"},
+		}),
+		[]string{"board_id"}, handleGetBoardConfiguration)
+
+	add("jira_get_issue_estimation",
+		"Get the agile estimation (e.g. story points) for an issue on a board — requires read:issue:jira-software.",
+		baseProps(map[string]interface{}{
+			"issue_key": map[string]interface{}{"type": "string"},
+			"board_id":  map[string]interface{}{"type": "integer"},
+		}),
+		[]string{"issue_key", "board_id"}, handleGetIssueEstimation)
 }
 
 func handleListBoards(raw json.RawMessage) map[string]interface{} {
@@ -307,4 +338,85 @@ func handleMoveIssuesToSprint(raw json.RawMessage) map[string]interface{} {
 		return mcp.ToolResultError(err.Error())
 	}
 	return mcp.ToolResultText("moved " + strconv.Itoa(len(issueKeys)) + " issue(s) to sprint " + strconv.Itoa(sprintID) + " (HTTP " + strconv.Itoa(status) + ")")
+}
+
+func handleGetBoardConfiguration(raw json.RawMessage) map[string]interface{} {
+	client, m, err := clientFrom(raw)
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
+	}
+	boardID := intArg(m, "board_id", 0)
+	if boardID <= 0 {
+		return mcp.ToolResultError("board_id is required")
+	}
+	cctx, cancel := ctx()
+	defer cancel()
+	body, _, err := client.Agile(cctx, http.MethodGet, "/board/"+strconv.Itoa(boardID)+"/configuration", nil, nil)
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
+	}
+	return rawJSONResult(body)
+}
+
+func handleGetIssueEstimation(raw json.RawMessage) map[string]interface{} {
+	client, m, err := clientFrom(raw)
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
+	}
+	issueKey := strArg(m, "issue_key")
+	boardID := intArg(m, "board_id", 0)
+	if issueKey == "" || boardID <= 0 {
+		return mcp.ToolResultError("issue_key and board_id are required")
+	}
+	q := url.Values{}
+	q.Set("boardId", strconv.Itoa(boardID))
+	cctx, cancel := ctx()
+	defer cancel()
+	body, _, err := client.Agile(cctx, http.MethodGet, "/issue/"+url.PathEscape(issueKey)+"/estimation", q, nil)
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
+	}
+	return rawJSONResult(body)
+}
+
+func handleCreateBoard(raw json.RawMessage) map[string]interface{} {
+	client, m, err := clientFrom(raw)
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
+	}
+	name := strArg(m, "name")
+	bType := strArg(m, "type")
+	filterID := intArg(m, "filter_id", 0)
+	if name == "" || bType == "" || filterID <= 0 {
+		return mcp.ToolResultError("name, type, and filter_id are required")
+	}
+	cctx, cancel := ctx()
+	defer cancel()
+	body, _, err := client.Agile(cctx, http.MethodPost, "/board", nil, map[string]interface{}{
+		"name":     name,
+		"type":     bType,
+		"filterId": filterID,
+	})
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
+	}
+	return rawJSONResult(body)
+}
+
+func handleDeleteBoard(raw json.RawMessage) map[string]interface{} {
+	client, m, err := clientFrom(raw)
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
+	}
+	boardID := intArg(m, "board_id", 0)
+	if boardID <= 0 {
+		return mcp.ToolResultError("board_id is required")
+	}
+	cctx, cancel := ctx()
+	defer cancel()
+	_, status, err := client.Agile(cctx, http.MethodDelete, "/board/"+strconv.Itoa(boardID), nil, nil)
+	if err != nil {
+		return mcp.ToolResultError(err.Error())
+	}
+	return mcp.ToolResultText("deleted board " + strconv.Itoa(boardID) + " (HTTP " + strconv.Itoa(status) + ")")
 }

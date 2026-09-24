@@ -585,3 +585,190 @@ func toolResultText(t *testing.T, result map[string]interface{}) string {
 	}
 	return content[0]["text"]
 }
+
+func TestHandleComponentsAndVersions(t *testing.T) {
+	clearToolFilterEnv(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "GET" && r.URL.Path == "/site-1/rest/api/3/project/PRJ/components":
+			_, _ = w.Write([]byte(`[{"id":"101","name":"Core"}]`))
+		case r.Method == "POST" && r.URL.Path == "/site-1/rest/api/3/component":
+			w.WriteHeader(201)
+			_, _ = w.Write([]byte(`{"id":"102","name":"UI","project":"PRJ"}`))
+		case r.Method == "GET" && r.URL.Path == "/site-1/rest/api/3/project/PRJ/versions":
+			_, _ = w.Write([]byte(`[{"id":"201","name":"v1.0"}]`))
+		case r.Method == "POST" && r.URL.Path == "/site-1/rest/api/3/version":
+			w.WriteHeader(201)
+			_, _ = w.Write([]byte(`{"id":"202","name":"v2.0","project":"PRJ"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	res1 := callTool(t, "jira_list_components", srv, map[string]interface{}{"project_key": "PRJ"})
+	if res1["isError"] == true {
+		t.Fatalf("jira_list_components failed: %+v", res1)
+	}
+	res2 := callTool(t, "jira_create_component", srv, map[string]interface{}{"project_key": "PRJ", "name": "UI"})
+	if res2["isError"] == true {
+		t.Fatalf("jira_create_component failed: %+v", res2)
+	}
+	res3 := callTool(t, "jira_list_versions", srv, map[string]interface{}{"project_key": "PRJ"})
+	if res3["isError"] == true {
+		t.Fatalf("jira_list_versions failed: %+v", res3)
+	}
+	res4 := callTool(t, "jira_create_version", srv, map[string]interface{}{"project_key": "PRJ", "name": "v2.0"})
+	if res4["isError"] == true {
+		t.Fatalf("jira_create_version failed: %+v", res4)
+	}
+}
+
+func TestHandleBoardConfigAndEstimation(t *testing.T) {
+	clearToolFilterEnv(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "GET" && r.URL.Path == "/site-1/rest/agile/1.0/board/5/configuration":
+			_, _ = w.Write([]byte(`{"id":5,"name":"Board 5"}`))
+		case r.Method == "GET" && r.URL.Path == "/site-1/rest/agile/1.0/issue/PRJ-10/estimation":
+			if r.URL.Query().Get("boardId") != "5" {
+				t.Errorf("boardId = %s", r.URL.Query().Get("boardId"))
+			}
+			_, _ = w.Write([]byte(`{"fieldId":"customfield_10016","value":8}`))
+		case r.Method == "POST" && r.URL.Path == "/site-1/rest/agile/1.0/board":
+			w.WriteHeader(201)
+			_, _ = w.Write([]byte(`{"id":10,"name":"Sprint Board","type":"scrum"}`))
+		case r.Method == "DELETE" && r.URL.Path == "/site-1/rest/agile/1.0/board/10":
+			w.WriteHeader(204)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	res1 := callTool(t, "jira_get_board_configuration", srv, map[string]interface{}{"board_id": float64(5)})
+	if res1["isError"] == true {
+		t.Fatalf("jira_get_board_configuration failed: %+v", res1)
+	}
+	res2 := callTool(t, "jira_get_issue_estimation", srv, map[string]interface{}{"issue_key": "PRJ-10", "board_id": float64(5)})
+	if res2["isError"] == true {
+		t.Fatalf("jira_get_issue_estimation failed: %+v", res2)
+	}
+	res3 := callTool(t, "jira_create_board", srv, map[string]interface{}{"name": "Sprint Board", "type": "scrum", "filter_id": float64(1001)})
+	if res3["isError"] == true {
+		t.Fatalf("jira_create_board failed: %+v", res3)
+	}
+	res4 := callTool(t, "jira_delete_board", srv, map[string]interface{}{"board_id": float64(10)})
+	if res4["isError"] == true {
+		t.Fatalf("jira_delete_board failed: %+v", res4)
+	}
+}
+
+func TestHandleEpics(t *testing.T) {
+	clearToolFilterEnv(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "GET" && r.URL.Path == "/site-1/rest/agile/1.0/board/5/epic":
+			_, _ = w.Write([]byte(`{"values":[{"id":1001,"name":"Epic 1"}]}`))
+		case r.Method == "GET" && r.URL.Path == "/site-1/rest/agile/1.0/epic/EPIC-1":
+			_, _ = w.Write([]byte(`{"id":1001,"key":"EPIC-1","name":"Epic 1"}`))
+		case r.Method == "GET" && r.URL.Path == "/site-1/rest/agile/1.0/epic/EPIC-1/issue":
+			_, _ = w.Write([]byte(`{"issues":[{"id":"1","key":"PRJ-1"}]}`))
+		case r.Method == "POST" && r.URL.Path == "/site-1/rest/agile/1.0/epic/EPIC-1/issue":
+			w.WriteHeader(204)
+		case r.Method == "POST" && r.URL.Path == "/site-1/rest/agile/1.0/epic/none/issue":
+			w.WriteHeader(204)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	res1 := callTool(t, "jira_list_epics", srv, map[string]interface{}{"board_id": float64(5)})
+	if res1["isError"] == true {
+		t.Fatalf("jira_list_epics failed: %+v", res1)
+	}
+	res2 := callTool(t, "jira_get_epic", srv, map[string]interface{}{"epic_id_or_key": "EPIC-1"})
+	if res2["isError"] == true {
+		t.Fatalf("jira_get_epic failed: %+v", res2)
+	}
+	res3 := callTool(t, "jira_list_epic_issues", srv, map[string]interface{}{"epic_id_or_key": "EPIC-1"})
+	if res3["isError"] == true {
+		t.Fatalf("jira_list_epic_issues failed: %+v", res3)
+	}
+	res4 := callTool(t, "jira_move_issues_to_epic", srv, map[string]interface{}{"epic_id_or_key": "EPIC-1", "issue_keys": []interface{}{"PRJ-1"}})
+	if res4["isError"] == true {
+		t.Fatalf("jira_move_issues_to_epic failed: %+v", res4)
+	}
+	res5 := callTool(t, "jira_remove_issues_from_epic", srv, map[string]interface{}{"issue_keys": []interface{}{"PRJ-1"}})
+	if res5["isError"] == true {
+		t.Fatalf("jira_remove_issues_from_epic failed: %+v", res5)
+	}
+}
+
+func TestHandleConfigAndLinks(t *testing.T) {
+	clearToolFilterEnv(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "GET" && r.URL.Path == "/site-1/rest/api/3/priority":
+			_, _ = w.Write([]byte(`[{"id":"1","name":"High"}]`))
+		case r.Method == "GET" && r.URL.Path == "/site-1/rest/api/3/status":
+			_, _ = w.Write([]byte(`[{"id":"1","name":"Open"}]`))
+		case r.Method == "GET" && r.URL.Path == "/site-1/rest/api/3/issueLinkType":
+			_, _ = w.Write([]byte(`{"issueLinkTypes":[{"id":"1","name":"Blocks"}]}`))
+		case r.Method == "POST" && r.URL.Path == "/site-1/rest/api/3/issueLink":
+			w.WriteHeader(201)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	res1 := callTool(t, "jira_list_priorities", srv, nil)
+	if res1["isError"] == true {
+		t.Fatalf("jira_list_priorities failed: %+v", res1)
+	}
+	res2 := callTool(t, "jira_list_statuses", srv, nil)
+	if res2["isError"] == true {
+		t.Fatalf("jira_list_statuses failed: %+v", res2)
+	}
+	res3 := callTool(t, "jira_list_issue_link_types", srv, nil)
+	if res3["isError"] == true {
+		t.Fatalf("jira_list_issue_link_types failed: %+v", res3)
+	}
+	res4 := callTool(t, "jira_link_issues", srv, map[string]interface{}{
+		"link_type":         "Blocks",
+		"inward_issue_key":  "PRJ-1",
+		"outward_issue_key": "PRJ-2",
+	})
+	if res4["isError"] == true {
+		t.Fatalf("jira_link_issues failed: %+v", res4)
+	}
+}
+
+func TestHandleWebhooks(t *testing.T) {
+	clearToolFilterEnv(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "GET" && r.URL.Path == "/site-1/rest/api/3/webhook":
+			_, _ = w.Write([]byte(`{"values":[{"id":123}]}`))
+		case r.Method == "DELETE" && r.URL.Path == "/site-1/rest/api/3/webhook":
+			w.WriteHeader(204)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	res1 := callTool(t, "jira_list_webhooks", srv, nil)
+	if res1["isError"] == true {
+		t.Fatalf("jira_list_webhooks failed: %+v", res1)
+	}
+	res2 := callTool(t, "jira_delete_webhooks", srv, map[string]interface{}{
+		"webhook_ids": []interface{}{float64(123)},
+	})
+	if res2["isError"] == true {
+		t.Fatalf("jira_delete_webhooks failed: %+v", res2)
+	}
+}
+

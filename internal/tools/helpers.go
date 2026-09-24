@@ -109,6 +109,42 @@ func strSliceArg(m map[string]interface{}, key string) []string {
 	return out
 }
 
+func intSliceArg(m map[string]interface{}, key string) []int {
+	v, ok := m[key]
+	if !ok || v == nil {
+		return nil
+	}
+	arr, ok := v.([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]int, 0, len(arr))
+	for _, e := range arr {
+		switch t := e.(type) {
+		case float64:
+			out = append(out, int(t))
+		case int:
+			out = append(out, t)
+		case json.Number:
+			if i, err := t.Int64(); err == nil {
+				out = append(out, int(i))
+			}
+		}
+	}
+	return out
+}
+
+func boolPtrArg(m map[string]interface{}, key string) *bool {
+	v, ok := m[key]
+	if !ok || v == nil {
+		return nil
+	}
+	if b, ok := v.(bool); ok {
+		return &b
+	}
+	return nil
+}
+
 func mapArg(m map[string]interface{}, key string) map[string]interface{} {
 	v, ok := m[key]
 	if !ok || v == nil {

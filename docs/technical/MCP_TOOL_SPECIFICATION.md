@@ -40,6 +40,9 @@ gate on, unlike Bright Data's Direct API billing).
 | `jira_search_assignable_users` | users | GET | `/user/assignable/search` |
 | `jira_list_boards` | agile | GET | `(agile)/board` |
 | `jira_get_board` | agile | GET | `(agile)/board/{id}` |
+| `jira_create_board` | agile | POST | `(agile)/board` |
+| `jira_delete_board` | agile | DELETE | `(agile)/board/{id}` |
+| `jira_get_board_configuration` | agile | GET | `(agile)/board/{id}/configuration` |
 | `jira_list_sprints` | agile | GET | `(agile)/board/{id}/sprint` |
 | `jira_get_sprint` | agile | GET | `(agile)/sprint/{id}` |
 | `jira_list_backlog_issues` | agile | GET | `(agile)/board/{id}/backlog` |
@@ -47,12 +50,27 @@ gate on, unlike Bright Data's Direct API billing).
 | `jira_create_sprint` | agile | POST | `(agile)/sprint` |
 | `jira_update_sprint` | agile | POST | `(agile)/sprint/{id}` (partial update) |
 | `jira_move_issues_to_sprint` | agile | POST | `(agile)/sprint/{id}/issue` |
+| `jira_get_issue_estimation` | agile | GET | `(agile)/issue/{key}/estimation` |
+| `jira_list_epics` | epics | GET | `(agile)/board/{id}/epic` |
+| `jira_get_epic` | epics | GET | `(agile)/epic/{idOrKey}` |
+| `jira_list_epic_issues` | epics | GET | `(agile)/epic/{idOrKey}/issue` |
+| `jira_move_issues_to_epic` | epics | POST | `(agile)/epic/{idOrKey}/issue` |
+| `jira_remove_issues_from_epic` | epics | POST | `(agile)/epic/none/issue` |
+| `jira_list_components` | projects | GET | `/project/{key}/components` |
+| `jira_create_component` | projects | POST | `/component` |
+| `jira_list_versions` | projects | GET | `/project/{key}/versions` |
+| `jira_create_version` | projects | POST | `/version` |
+| `jira_list_priorities` | config | GET | `/priority` |
+| `jira_list_statuses` | config | GET | `/status` |
+| `jira_list_issue_link_types` | config | GET | `/issueLinkType` |
+| `jira_link_issues` | config | POST | `/issueLink` |
+| `jira_list_webhooks` | webhooks | GET | `/webhook` |
+| `jira_delete_webhooks` | webhooks | DELETE | `/webhook` |
 
 `(agile)` = `/rest/agile/1.0`; everything else is `/rest/api/3`, both under
 `https://api.atlassian.com/ex/jira/{cloudId}`.
 
 ## Non-goals / not implemented
 
-Jira Service Management, attachment upload/download, webhook registration,
-admin/project-configuration endpoints, bulk issue operations beyond
-`jira_move_issues_to_sprint`.
+Jira Service Management, attachment upload/download, bulk issue operations beyond
+`jira_move_issues_to_sprint` and `jira_move_issues_to_epic`.

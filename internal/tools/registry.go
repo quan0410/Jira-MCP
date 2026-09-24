@@ -32,6 +32,9 @@ func Register() ([]mcp.ToolDesc, map[string]mcp.ToolHandler) {
 	registerProjectTools(add)
 	registerUserTools(add)
 	registerAgileTools(add)
+	registerEpicTools(add)
+	registerConfigTools(add)
+	registerWebhookTools(add)
 
 	return descs, handlers
 }
